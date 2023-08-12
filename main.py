@@ -30,7 +30,7 @@ for e in range(n_episodes):
 
     for t in range(100):  # Maximum of 100 steps per episode
         action = agent.act(state)
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, _ = env.step(action,t)
         next_state = np.reshape(next_state, [1, state_size])
         agent.remember(state, action, reward, next_state, done)
         state = next_state
@@ -57,5 +57,5 @@ plt.xlabel('Episode')
 plt.ylabel('Cumulative Reward')
 plt.title('Cumulative Reward vs. Episode')
 plt.show()
-
 # ... (rest of the code remains the same)
+

@@ -6,14 +6,20 @@ import time
 import random
 import math
 
-class UAV:
-    gamma_0_square = 1
 
-    def __init__(self, x_uav, y_uav, H):
+class UAV:
+    ALPHA_S = 0.5
+    BETA_S = 0.5
+    START_ENERGY_S = 20000
+    gamma_0_square = 1
+    DEFAULT_ENLOSS = 20
+    def __init__(self, x_uav, y_uav, H, alpha=ALPHA_S, beta=BETA_S, energy=START_ENERGY_S):
         self.x_uav = x_uav
         self.y_uav = y_uav
         self.altitude = H
-
+        self.alpha = alpha
+        self.beta = beta
+        self.energy = energy
     @staticmethod
     def power(t):
         return random.random()
@@ -56,7 +62,7 @@ class UAVDataCollectionEnv(gym.Env):
             self.grid[x, y] = 2  # You can use any other value (e.g., 2) to represent the data collection points
         
         # Create a UAV object within the environment
-        self.uav = UAV(0, 0,100)  # Initialize UAV object with initial position (0, 0) and altitude 0
+        self.uav = UAV(0, 0,UAV.START_ENERGY_S, UAV.ALPHA_S, UAV.BETA_S)  # Initialize UAV object with initial position (0, 0) and altitude 0
         self.time_step = 0  # Initialize the time step
         
         # Pygame setup
@@ -68,6 +74,9 @@ class UAVDataCollectionEnv(gym.Env):
         pygame.display.set_caption("UAV Data Collection")
         
 
+    def consume_energy(self,t,x,y):
+        self.uav.energy -= UAV.ALPHA_S*math.log10(self.uav.r(t,x,y)) + UAV.DEFAULT_ENLOSS
+        
     def reset(self):
         self.grid = np.zeros((self.n, self.m))
         self.agent_position = (0, 0)
@@ -75,13 +84,14 @@ class UAVDataCollectionEnv(gym.Env):
         self.cumulative_reward = 0
         return self.agent_position
 
-    def step(self, action):
+    def step(self, action,t):
         assert self.action_space.contains(action)
 
         if self.done:
             raise ValueError("Episode is done. Call reset() to start a new episode.")
 
         row, col = self.agent_position
+        rowbef, colbef = row,col
         if action == 0:  # Up
             row = max(row - 1, 0)
         elif action == 1:  # Down
@@ -94,16 +104,21 @@ class UAVDataCollectionEnv(gym.Env):
         self.agent_position = (row, col)
 
         reward = self._get_reward(row, col,self.time_step)
+        self.consume_energy(t,row,col)
+        if (self.uav.energy<=0):
+            self.agent_position = rowbef,colbef
+            self.done = True
+            raise ValueError("Episode is done. Call reset() to start a new episode.")
         self.cumulative_reward += reward
         self.grid[row, col] = 1  # Mark the visited cell with 1
 
         # Check if the agent has collected all data (reached all data collection points)
-        if all(self.grid[x, y] == 1 for x, y in self.data_collection_points):
+        if (self.uav.energy <=0):
             self.done = True
         self.time_step += 1
         return self.agent_position, reward, self.done, {}
 
-    def render(self):
+    def render(self, mode="human"):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -145,20 +160,23 @@ class UAVDataCollectionEnv(gym.Env):
     #        reward *= 2  # Amplification factor: 2
 #
 #        return reward
-    def _get_reward(self, row, col, t):
-        # Use the r() function from the UAV class to calculate the base reward
-        x, y = row, col  # Convert row, col to x, y coordinates
-        base_reward = self.uav.r(t, x, y)
-        alpha  = 0.3
-        # Reward for reaching data collection points
-        data_collection_reward = 100*abs(base_reward)*t if (row, col) in self.data_collection_points else 0
+#    def _get_reward(self, row, col, t):
+#        # Use the r() function from the UAV class to calculate the base reward
+#        x, y = row, col  # Convert row, col to x, y coordinates
+#        base_reward = self.uav.r(t, x, y)
+#        alpha  = 0.3
+#        # Reward for reaching data collection points
+#        data_collection_reward = 100*abs(base_reward)*t if (row, col) in self.data_collection_points else 0
+#
+#        # Time penalty to encourage reaching data collection points quickly
+#        time_penalty = -0.1  # You can customize the penalty value, e.g., -0.1 for each time step
+#
+#        # Calculate the final reward as a combination of the base reward, data collection reward, and time penalty
+#        reward = alpha*(base_reward + data_collection_reward) + (1-alpha)*(time_penalty * t)
+#        return reward
 
-        # Time penalty to encourage reaching data collection points quickly
-        time_penalty = -0.1  # You can customize the penalty value, e.g., -0.1 for each time step
-
-        # Calculate the final reward as a combination of the base reward, data collection reward, and time penalty
-        reward = alpha*(base_reward + data_collection_reward) + (1-alpha)*(time_penalty * t)
-        return reward
+    def _get_reward(self,row,col,t):
+        return self.uav.r(t,row,col)
     
 # Example usage of the custom environment
 if __name__ == "__main__":
@@ -172,9 +190,9 @@ if __name__ == "__main__":
     done = False
     t = 0  # Initialize time step
     while not done:
-        env.render()
+        env.render()p
         action = env.action_space.sample()
-        state, reward, done, _ = env.step(action)
+        state, reward, done, _ = env.step(action,t)
 
         # Call the r() function from the UAV class to get the reward for this time step
         x, y = state
