@@ -190,7 +190,7 @@ if __name__ == "__main__":
     done = False
     t = 0  # Initialize time step
     while not done:
-        env.render()p
+        env.render()
         action = env.action_space.sample()
         state, reward, done, _ = env.step(action,t)
 

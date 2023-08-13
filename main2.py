@@ -38,9 +38,7 @@ agent = DQNAgent(
     )
 
 agent.compile(tensorflow.keras.optimizers.legacy.Adam(learning_rate=1e-3), metrics=["mae"])
-agent.fit(env, nb_steps=1000, visualize=True, verbose=1)
-
-
+agent.fit(env, nb_steps=10000, visualize=True, verbose=1)
 results = agent.test(env, nb_episodes=1, visualize=True)
 #print(np.mean(results.history["episode_reward"]))
 env.close()
