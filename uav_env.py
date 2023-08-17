@@ -9,11 +9,12 @@ import math
 
 class UAV:
     ALPHA_S = 0.5
-    BETA_S = 0.5
-    START_ENERGY_S = 20000
+    BETA_S = 0.05
+    START_ENERGY_S = 200000000
     gamma_0_square = 1
     DEFAULT_ENLOSS = 20
-    def __init__(self, x_uav, y_uav, H, alpha=ALPHA_S, beta=BETA_S, energy=START_ENERGY_S):
+    DEFAULT_HEIGHT = 100
+    def __init__(self, x_uav, y_uav, H=DEFAULT_HEIGHT, alpha=ALPHA_S, beta=BETA_S, energy=START_ENERGY_S):
         self.x_uav = x_uav
         self.y_uav = y_uav
         self.altitude = H
@@ -44,10 +45,12 @@ class UAV:
     
 class UAVDataCollectionEnv(gym.Env):
     def __init__(self, n, m):
+        self.ENVIRONMENT_SHAPE = (n,m)
+        self.t = 0
         self.n = n
         self.m = m
         self.grid = np.zeros((n, m))
-        self.data_collection_points = [(n - 1, m - 1)]  # List of data collection points
+        self.data_collection_points = [(0,m-1),(n-1,0),(n - 1, m - 1)]  # List of data collection points
         self.agent_position = (0, 0)  # Initial agent position (top-left corner)
         self.done = False
         self.cumulative_reward = 0  # Cumulative reward for the current episode
@@ -62,8 +65,8 @@ class UAVDataCollectionEnv(gym.Env):
             self.grid[x, y] = 2  # You can use any other value (e.g., 2) to represent the data collection points
         
         # Create a UAV object within the environment
-        self.uav = UAV(0, 0,UAV.START_ENERGY_S, UAV.ALPHA_S, UAV.BETA_S)  # Initialize UAV object with initial position (0, 0) and altitude 0
-        self.time_step = 0  # Initialize the time step
+        self.uav = UAV(0, 0)  # Initialize UAV object with initial position (0, 0) and altitude 0
+        self.time_step = 0  # Initialize the time 
         
         # Pygame setup
         self.cell_size = 40
@@ -84,7 +87,7 @@ class UAVDataCollectionEnv(gym.Env):
         self.cumulative_reward = 0
         return self.agent_position
 
-    def step(self, action,t):
+    def step(self, action):
         assert self.action_space.contains(action)
 
         if self.done:
@@ -104,11 +107,11 @@ class UAVDataCollectionEnv(gym.Env):
         self.agent_position = (row, col)
 
         reward = self._get_reward(row, col,self.time_step)
-        self.consume_energy(t,row,col)
+        self.consume_energy(self.t,row,col)
         if (self.uav.energy<=0):
             self.agent_position = rowbef,colbef
             self.done = True
-            raise ValueError("Episode is done. Call reset() to start a new episode.")
+            raise ValueError("No more energy !! Episode is done. Call reset() to start a new episode.")
         self.cumulative_reward += reward
         self.grid[row, col] = 1  # Mark the visited cell with 1
 
@@ -175,8 +178,24 @@ class UAVDataCollectionEnv(gym.Env):
 #        reward = alpha*(base_reward + data_collection_reward) + (1-alpha)*(time_penalty * t)
 #        return reward
 
-    def _get_reward(self,row,col,t):
-        return self.uav.r(t,row,col)
+    #def _get_reward(self,row,col,t):
+     #   return UAV.ALPHA_S*self.uav.r(t,row,col) - UAV.BETA_S*UAV.DEFAULT_ENLOSS
+    def _get_reward(self, row, col, t):
+         # Calculate the base reward using the UAV's r() function
+         x, y = row, col
+         base_reward = self.uav.r(t, x, y)
+
+         # Define the rewards for reaching data collection points and non-data points
+         data_collection_reward = 0  # Reward when reaching a data collection point
+         non_data_reward = -1  # Penalty when not at a data collection point
+
+         # Calculate the final reward based on whether the agent is at a data collection point or not
+         if (row, col) in self.data_collection_points:
+             reward = data_collection_reward
+         else:
+             reward = non_data_reward
+
+         return reward
     
 # Example usage of the custom environment
 if __name__ == "__main__":
@@ -192,7 +211,7 @@ if __name__ == "__main__":
     while not done:
         env.render()
         action = env.action_space.sample()
-        state, reward, done, _ = env.step(action,t)
+        state, reward, done, _ = env.step(action)
 
         # Call the r() function from the UAV class to get the reward for this time step
         x, y = state

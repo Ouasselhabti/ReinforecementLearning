@@ -8,7 +8,7 @@ from tensorflow.keras.layers import Dense , Flatten
 from tensorflow.keras.optimizers import Adam
 
 from rl.agents import DQNAgent
-from rl.policy import BoltzmannQPolicy  
+from rl.policy import GreedyQPolicy
 from rl.memory import SequentialMemory
 
 
@@ -31,7 +31,7 @@ model.add(Dense(4,activation="linear"))
 agent = DQNAgent(
     model=model,
     memory=SequentialMemory(limit=50000, window_length=1),
-    policy=BoltzmannQPolicy(),
+    policy= GreedyQPolicy(),
     nb_actions=4,
     nb_steps_warmup=10,
     target_model_update=0.01
@@ -39,6 +39,18 @@ agent = DQNAgent(
 
 agent.compile(tensorflow.keras.optimizers.legacy.Adam(learning_rate=1e-3), metrics=["mae"])
 agent.fit(env, nb_steps=10000, visualize=True, verbose=1)
-results = agent.test(env, nb_episodes=1, visualize=True)
-#print(np.mean(results.history["episode_reward"]))
+# Testing
+num_episodes = 100
+episode_rewards = []  # To store episode rewards
+for _ in range(num_episodes):
+    result = agent.test(env, nb_episodes=1, visualize=False, nb_max_episode_steps=1000)
+    episode_rewards.append(result.history["episode_reward"][0])  # Append reward of the episode
+
+# Draw the rewards
+plt.plot(episode_rewards)
+plt.xlabel("Episode")
+plt.ylabel("Episode Reward")
+plt.title("Episode Rewards during Testing")
+plt.show()
+
 env.close()

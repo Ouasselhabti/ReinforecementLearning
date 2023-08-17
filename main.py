@@ -3,6 +3,9 @@ from dqn import DQNAgent
 from uav_env import UAVDataCollectionEnv
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+
+print(sys.version)
 
 # Create the UAVDataCollectionEnv environment
 n_rows = 5
@@ -28,7 +31,7 @@ for e in range(n_episodes):
     state = np.reshape(state, [1, state_size])
     total_reward = 0  # Initialize total reward for each episode
 
-    for t in range(100):  # Maximum of 100 steps per episode
+    for t in range(100):  # Maximum of 100 steps per espisode
         action = agent.act(state)
         next_state, reward, done, _ = env.step(action,t)
         next_state = np.reshape(next_state, [1, state_size])
@@ -58,4 +61,12 @@ plt.ylabel('Cumulative Reward')
 plt.title('Cumulative Reward vs. Episode')
 plt.show()
 # ... (rest of the code remains the same)
+
+
+
+
+
+
+
+
 
